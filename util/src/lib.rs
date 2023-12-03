@@ -1,5 +1,7 @@
 mod solution;
 
+pub mod grid;
+
 pub use solution::{Answer, Solution};
 
 pub fn run_year(binary_name: &str, functions: &[fn(&str) -> Solution]) {

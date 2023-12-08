@@ -1,6 +1,7 @@
 mod solution;
 
 pub mod grid;
+pub mod math;
 
 pub use solution::{Answer, Solution};
 

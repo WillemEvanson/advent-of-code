@@ -1,5 +1,6 @@
 mod solution;
 
+pub mod bit_set;
 pub mod grid;
 pub mod math;
 

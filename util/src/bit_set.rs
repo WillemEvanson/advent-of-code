@@ -83,6 +83,39 @@ impl BitSet {
             .iter()
             .fold(0, |accum, &word| accum + word.count_ones())
     }
+
+    // Returns the number of set bits in the range `start`..=`end`,
+    #[inline]
+    pub fn between(&self, start: u32, end: u32) -> u32 {
+        let div_start = start / Self::BITS;
+        let rem_start = start % Self::BITS;
+        let div_end = end / Self::BITS;
+        let rem_end = end % Self::BITS;
+
+        if div_start == div_end {
+            let mask = !((1 << rem_start) - 1) & ((1 << rem_end) - 1);
+            let word = self.bits[div_start as usize];
+            let bits = word & mask;
+
+            bits.count_ones()
+        } else {
+            let start_mask = (u32::MAX >> rem_start) << rem_start;
+            let start_word = self.bits[div_start as usize];
+            let start_bits = start_word & start_mask;
+            let mut bits = start_bits.count_ones();
+
+            for i in div_start + 1..div_end {
+                bits += self.bits[i as usize].count_ones();
+            }
+
+            let end_mask = (1 << rem_end) - 1;
+            let end_word = self.bits[div_end as usize];
+            let end_bits = end_word & end_mask;
+            bits += end_bits.count_ones();
+
+            bits
+        }
+    }
 }
 
 impl std::fmt::Debug for BitSet {

@@ -14,6 +14,7 @@ const FUNCTIONS: &[fn(&str) -> util::Solution] = &[
     day10::solve,
     day11::solve,
     day12::solve,
+    day13::solve,
 ];
 
 fn main() {

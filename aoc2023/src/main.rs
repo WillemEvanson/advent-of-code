@@ -36,9 +36,9 @@ fn main() {
         eprintln!("aoc2023 [input dir]");
         return;
     };
-    
+
     let path = Path::new(&input_dir);
-    for i in 1..=25 {
+    for i in 1..=FUNCTIONS.len() {
         let path = path.join(format!("day{i}.txt"));
         if let Ok(input) = std::fs::read_to_string(&path) {
             let now = std::time::Instant::now();

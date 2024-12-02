@@ -51,7 +51,7 @@ pub fn solve(input: &str) -> Solution {
 
     let mut visited = HashSet::new();
     let mut todo = vec![(start_x, start_y, Dir::Down)];
-    let mut paths: FxHashMap<(i32, i32), HashMap<(i32, i32), Vec<(i32, i32)>>> = HashMap::default();
+    let mut paths: FxHashMap<(i32, i32), HashMap<(i32, i32), u32>> = HashMap::default();
     while let Some((mut x, mut y, mut dir)) = todo.pop() {
         if visited.contains(&(x, y, dir)) {
             continue;
@@ -65,7 +65,7 @@ pub fn solve(input: &str) -> Solution {
         x = new_x;
         y = new_y;
 
-        let mut path = Vec::new();
+        let mut path_len = 0;
         loop {
             let mut straight = false;
             let (new_x, new_y) = dir.offset(x, y);
@@ -88,7 +88,7 @@ pub fn solve(input: &str) -> Solution {
             let count = straight as u8 + left as u8 + right as u8;
             if count == 1 {
                 visited.insert((x, y, dir));
-                path.push((x, y));
+                path_len += 1;
                 if straight {
                     let (new_x, new_y) = dir.offset(x, y);
                     x = new_x;
@@ -124,27 +124,28 @@ pub fn solve(input: &str) -> Solution {
             }
         }
 
-        if path.len() != 0 {
+        if path_len != 0 {
             let first = (s_x, s_y);
             let last = (x, y);
 
-            let mut first_path = path.clone();
-            first_path.insert(0, first);
-
-            paths.entry(first).or_default().insert(last, first_path);
-
-            let mut last_path = path.clone();
-            last_path.push(last);
-
-            paths.entry(last).or_default().insert(first, last_path);
+            paths.entry(first).or_default().insert(last, path_len + 1);
+            paths.entry(last).or_default().insert(first, path_len + 1);
         }
     }
+
+    let (&(real_end_x, real_end_y), &cost_to_exit) = match paths.get(&(end_x, end_y)) {
+        Some(edges) => {
+            assert!(edges.len() == 1, "maze exit must only be reachable via one path");
+            edges.iter().next().unwrap()
+        },
+        None => panic!("maze exit must be reachable"),
+    };
 
     let mut part2 = 0;
     let mut to_visit = vec![(start_x, start_y, Dir::Down, 0, HashSet::new())];
     while let Some((x, y, _dir, count, mut visited)) = to_visit.pop() {
-        if x == end_x && y == end_y {
-            part2 = u64::max(count, part2);
+        if x == real_end_x && y == real_end_y {
+            part2 = u64::max(count + cost_to_exit as u64, part2);
             continue;
         }
         if visited.contains(&(x, y)) {
@@ -152,12 +153,12 @@ pub fn solve(input: &str) -> Solution {
         }
         visited.insert((x, y));
 
-        for ((end_x, end_y), path) in paths.get(&(x, y)).unwrap() {
+        for ((end_x, end_y), path_len) in paths.get(&(x, y)).unwrap() {
             to_visit.push((
                 *end_x,
                 *end_y,
                 _dir,
-                count + path.len() as u64,
+                count + *path_len as u64,
                 visited.clone(),
             ));
         }

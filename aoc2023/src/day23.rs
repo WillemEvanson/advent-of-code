@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
 
 use util::Solution;
 
@@ -15,39 +15,6 @@ pub fn solve(input: &str) -> Solution {
         .find(|&i| !matches!(grid.get_tile(i, end_y), Some(Tile::Forest)))
         .unwrap();
 
-    let mut to_visit = VecDeque::new();
-    to_visit.push_front((start_x, start_y, Dir::Down, 0, HashSet::new()));
-
-    let mut part1 = u64::MIN;
-    while let Some((x, y, dir, count, mut visited)) = to_visit.pop_front() {
-        if x == end_x && y == end_y {
-            part1 = u64::max(count, part1);
-            continue;
-        }
-
-        if visited.contains(&(x, y)) {
-            continue;
-        }
-        visited.insert((x, y));
-
-        // Must follow tile dir
-        if let Some(Tile::Slope(dir)) = grid.get_tile(x, y) {
-            let (new_x, new_y) = dir.offset(x, y);
-            to_visit.push_back((new_x, new_y, dir, count + 1, visited));
-        } else if let Some(Tile::Path) = grid.get_tile(x, y) {
-            let (new_x, new_y) = dir.offset(x, y);
-            to_visit.push_back((new_x, new_y, dir, count + 1, visited.clone()));
-
-            let new_dir = dir.left();
-            let (new_x, new_y) = new_dir.offset(x, y);
-            to_visit.push_back((new_x, new_y, new_dir, count + 1, visited.clone()));
-
-            let new_dir = dir.right();
-            let (new_x, new_y) = new_dir.offset(x, y);
-            to_visit.push_back((new_x, new_y, new_dir, count + 1, visited));
-        }
-    }
-
     let mut visited = HashSet::new();
     let mut todo = vec![(start_x, start_y, Dir::Down)];
     let mut paths: HashMap<_, HashMap<_, _>> = HashMap::new();
@@ -57,15 +24,26 @@ pub fn solve(input: &str) -> Solution {
         }
         visited.insert((x, y, dir));
 
-        let s_x = x;
-        let s_y = y;
+        let path_start_x = x;
+        let path_start_y = y;
 
         let (new_x, new_y) = dir.offset(x, y);
         x = new_x;
         y = new_y;
 
-        let mut path = Vec::new();
+        let mut slope_forward = false;
+        let mut slope_backward = false;
+
+        let mut path_len = 0;
         loop {
+            if let Some(Tile::Slope(slope_dir)) = grid.get_tile(x, y) {
+                if slope_dir == dir {
+                    slope_forward = true;
+                } else {
+                    slope_backward = true;
+                }
+            }
+
             let mut straight = false;
             let (new_x, new_y) = dir.offset(x, y);
             if let Some(Tile::Path | Tile::Slope(_)) = grid.get_tile(new_x, new_y) {
@@ -88,7 +66,7 @@ pub fn solve(input: &str) -> Solution {
             match count.cmp(&1) {
                 std::cmp::Ordering::Equal => {
                     visited.insert((x, y, dir));
-                    path.push((x, y));
+                    path_len += 1;
                     if straight {
                         let (new_x, new_y) = dir.offset(x, y);
                         x = new_x;
@@ -125,23 +103,22 @@ pub fn solve(input: &str) -> Solution {
             }
         }
 
-        if !path.is_empty() {
-            let first = (s_x, s_y);
+        if path_len != 0 {
+            let first = (path_start_x, path_start_y);
             let last = (x, y);
 
-            let mut first_path = path.clone();
-            first_path.insert(0, first);
-
-            paths.entry(first).or_default().insert(last, first_path);
-
-            let mut last_path = path.clone();
-            last_path.push(last);
-
-            paths.entry(last).or_default().insert(first, last_path);
+            paths
+                .entry(first)
+                .or_default()
+                .insert(last, (path_len + 1, slope_forward));
+            paths
+                .entry(last)
+                .or_default()
+                .insert(first, (path_len + 1, slope_backward));
         }
     }
 
-    let (&(real_end_x, real_end_y), cost_to_exit) = match paths.get(&(end_x, end_y)) {
+    let (&(real_end_x, real_end_y), &(cost_to_exit, _)) = match paths.get(&(end_x, end_y)) {
         Some(edges) => {
             assert!(
                 edges.len() == 1,
@@ -152,11 +129,11 @@ pub fn solve(input: &str) -> Solution {
         None => panic!("maze exit must be reachable"),
     };
 
-    let mut part2 = 0;
+    let mut part1 = 0;
     let mut to_visit = vec![(start_x, start_y, 0, HashSet::new())];
     while let Some((x, y, count, mut visited)) = to_visit.pop() {
         if x == real_end_x && y == real_end_y {
-            part2 = u64::max(count + cost_to_exit.len() as u64, part2);
+            part1 = u64::max(count + cost_to_exit, part1);
             continue;
         }
 
@@ -165,8 +142,30 @@ pub fn solve(input: &str) -> Solution {
         }
         visited.insert((x, y));
 
-        for (&(end_x, end_y), path) in paths.get(&(x, y)).unwrap() {
-            to_visit.push((end_x, end_y, count + path.len() as u64, visited.clone()));
+        for (&(end_x, end_y), &(len, slope_traversable)) in paths.get(&(x, y)).unwrap().iter() {
+            if !slope_traversable {
+                continue;
+            }
+
+            to_visit.push((end_x, end_y, count + len, visited.clone()));
+        }
+    }
+
+    let mut part2 = 0;
+    let mut to_visit = vec![(start_x, start_y, 0, HashSet::new())];
+    while let Some((x, y, count, mut visited)) = to_visit.pop() {
+        if x == real_end_x && y == real_end_y {
+            part2 = u64::max(count + cost_to_exit, part2);
+            continue;
+        }
+
+        if visited.contains(&(x, y)) {
+            continue;
+        }
+        visited.insert((x, y));
+
+        for (&(end_x, end_y), &(len, _)) in paths.get(&(x, y)).unwrap() {
+            to_visit.push((end_x, end_y, count + len, visited.clone()));
         }
     }
 

@@ -1,4 +1,8 @@
-const FUNCTIONS: &[fn(&str) -> util::Solution] = &[];
+use aoc2024::*;
+
+const FUNCTIONS: &[fn(&str) -> util::Solution] = &[
+    day1::solve,
+];
 
 fn main() {
     let Some(input_dir) = std::env::args_os().nth(1) else {

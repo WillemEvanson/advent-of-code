@@ -141,11 +141,22 @@ pub fn solve(input: &str) -> Solution {
         }
     }
 
+    let (&(real_end_x, real_end_y), cost_to_exit) = match paths.get(&(end_x, end_y)) {
+        Some(edges) => {
+            assert!(
+                edges.len() == 1,
+                "maze exit must only be reachable via one path"
+            );
+            edges.iter().next().unwrap()
+        }
+        None => panic!("maze exit must be reachable"),
+    };
+
     let mut part2 = 0;
     let mut to_visit = vec![(start_x, start_y, 0, HashSet::new())];
     while let Some((x, y, count, mut visited)) = to_visit.pop() {
-        if x == end_x && y == end_y {
-            part2 = u64::max(count, part2);
+        if x == real_end_x && y == real_end_y {
+            part2 = u64::max(count + cost_to_exit.len() as u64, part2);
             continue;
         }
 

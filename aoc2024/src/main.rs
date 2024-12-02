@@ -2,6 +2,7 @@ use aoc2024::*;
 
 const FUNCTIONS: &[fn(&str) -> util::Solution] = &[
     day1::solve,
+    day2::solve,
 ];
 
 fn main() {

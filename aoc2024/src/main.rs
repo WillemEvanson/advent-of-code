@@ -3,7 +3,7 @@ use std::path::Path;
 use aoc2024::*;
 use util::Solution;
 
-const FUNCTIONS: [fn(&str) -> Solution; 2] = [day1::solve, day2::solve];
+const FUNCTIONS: [fn(&str) -> Solution; 3] = [day1::solve, day2::solve, day3::solve];
 
 fn main() {
     let Some(input_dir) = std::env::args_os().nth(1) else {

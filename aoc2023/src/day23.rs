@@ -150,38 +150,63 @@ pub fn solve(input: &str) -> Solution {
     let (one_before_id, cost_to_exit, _) = edges[end_id as usize][0];
 
     let mut part1 = 0;
-    let mut to_visit = vec![(start_id, 0, BitSet::new(edges.len()))];
-    while let Some((id, count, mut visited)) = to_visit.pop() {
-        if id == one_before_id {
-            part1 = u64::max(count + cost_to_exit as u64, part1);
-            continue;
-        }
-        visited.set(id as usize);
+    let mut visited = BitSet::new(edges.len());
+    let mut stack = vec![RecursionState::Visit(start_id, 0)];
+    while let Some(state) = stack.pop() {
+        match state {
+            RecursionState::Visit(id, count) => {
+                if id == one_before_id {
+                    part1 = u64::max(count + cost_to_exit as u64, part1);
+                    continue;
+                }
 
-        for &(to_id, len, slope_traversable) in edges[id as usize].iter() {
-            if slope_traversable && !visited.get(to_id as usize) {
-                to_visit.push((to_id, count + len as u64, visited.clone()));
+                visited.set(id as usize);
+                stack.push(RecursionState::Unset(id));
+
+                for &(to_id, len, slope_traversable) in edges[id as usize].iter() {
+                    if slope_traversable && !visited.get(to_id as usize) {
+                        stack.push(RecursionState::Visit(to_id, count + len as u64));
+                    }
+                }
+            }
+            RecursionState::Unset(id) => {
+                visited.reset(id as usize);
             }
         }
     }
 
     let mut part2 = 0;
-    let mut to_visit = vec![(start_id, 0, BitSet::new(edges.len()))];
-    while let Some((id, count, mut visited)) = to_visit.pop() {
-        if id == one_before_id {
-            part2 = u64::max(count + cost_to_exit as u64, part2);
-            continue;
-        }
-        visited.set(id as usize);
+    let mut visited = BitSet::new(edges.len());
+    let mut stack = vec![RecursionState::Visit(start_id, 0)];
+    while let Some(state) = stack.pop() {
+        match state {
+            RecursionState::Visit(id, count) => {
+                if id == one_before_id {
+                    part2 = u64::max(count + cost_to_exit as u64, part2);
+                    continue;
+                }
 
-        for &(to_id, len, _) in edges[id as usize].iter() {
-            if !visited.get(to_id as usize) {
-                to_visit.push((to_id, count + len as u64, visited.clone()));
+                visited.set(id as usize);
+                stack.push(RecursionState::Unset(id));
+
+                for &(to_id, len, _) in edges[id as usize].iter() {
+                    if !visited.get(to_id as usize) {
+                        stack.push(RecursionState::Visit(to_id, count + len as u64));
+                    }
+                }
+            }
+            RecursionState::Unset(id) => {
+                visited.reset(id as usize);
             }
         }
     }
 
     Solution::from((part1, part2))
+}
+
+enum RecursionState {
+    Visit(u32, u64),
+    Unset(u32),
 }
 
 #[derive(Debug, Clone)]

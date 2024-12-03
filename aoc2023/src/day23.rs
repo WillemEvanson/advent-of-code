@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use util::bit_set::BitSet;
 use util::direction::Direction;
 use util::Solution;
 
@@ -177,7 +178,7 @@ pub fn solve(input: &str) -> Solution {
     let (one_before_id, cost_to_exit, _) = graph[end_id as usize][0];
 
     let mut part1 = 0;
-    let mut visited = HashSet::new();
+    let mut visited = BitSet::new(graph.len() as u32);
     let mut to_visit = vec![IterationState::Visit(start_id, 0)];
     while let Some(state) = to_visit.pop() {
         match state {
@@ -188,14 +189,14 @@ pub fn solve(input: &str) -> Solution {
                 }
 
                 to_visit.push(IterationState::Unset(id));
-                visited.insert(id);
+                visited.set(id);
 
                 for &(to_id, length, sloped) in graph[id as usize].iter() {
                     if !sloped {
                         continue;
                     }
 
-                    if visited.contains(&to_id) {
+                    if visited.get(to_id) {
                         continue;
                     }
 
@@ -203,13 +204,13 @@ pub fn solve(input: &str) -> Solution {
                 }
             }
             IterationState::Unset(id) => {
-                visited.remove(&id);
+                visited.unset(id);
             }
         }
     }
 
     let mut part2 = 0;
-    let mut visited = HashSet::new();
+    let mut visited = BitSet::new(graph.len() as u32);
     let mut to_visit = vec![IterationState::Visit(start_id, 0)];
     while let Some(state) = to_visit.pop() {
         match state {
@@ -220,10 +221,10 @@ pub fn solve(input: &str) -> Solution {
                 }
 
                 to_visit.push(IterationState::Unset(id));
-                visited.insert(id);
+                visited.set(id);
 
                 for &(to_id, length, _) in graph[id as usize].iter() {
-                    if visited.contains(&to_id) {
+                    if visited.get(to_id) {
                         continue;
                     }
 
@@ -231,7 +232,7 @@ pub fn solve(input: &str) -> Solution {
                 }
             }
             IterationState::Unset(id) => {
-                visited.remove(&id);
+                visited.unset(id);
             }
         }
     }

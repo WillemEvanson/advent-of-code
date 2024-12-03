@@ -1,3 +1,7 @@
+mod bit_set;
+
+pub use bit_set::BitSet;
+
 #[derive(Debug, Clone)]
 pub enum Solution {
     Two(Answer, Answer),

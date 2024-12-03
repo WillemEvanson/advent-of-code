@@ -177,6 +177,27 @@ pub fn solve(input: &str) -> Solution {
     // possibilities to explore.
     let (one_before_id, cost_to_exit, _) = graph[end_id as usize][0];
 
+    // Prune edges which, if taken, would require touching a node twice to reach the
+    // end. These edges are those along the outside of the graph which move toward
+    // the start.
+    let mut visited = BitSet::new(graph.len() as u32);
+    let mut stack = vec![start_id];
+    while let Some(id) = stack.pop() {
+        graph[id as usize].retain(|&(to_id, _, _)| !visited.get(to_id));
+        visited.set(id);
+
+        for &(to_id, _, _) in graph[id as usize].iter() {
+            if visited.get(to_id) || to_id == one_before_id {
+                continue;
+            }
+
+            if graph[to_id as usize].len() == 3 {
+                stack.push(to_id);
+                continue;
+            }
+        }
+    }
+
     let mut part1 = 0;
     let mut visited = BitSet::new(graph.len() as u32);
     let mut to_visit = vec![IterationState::Visit(start_id, 0)];

@@ -115,59 +115,73 @@ pub fn solve(input: &str) -> Solution {
         }
     }
 
-    let mut part1 = 0;
-    let mut to_visit = vec![(start_x, start_y, 0, FxHashSet::default())];
-    while let Some((x, y, count, mut visited)) = to_visit.pop() {
-        if x == end_x && y == end_y {
-            part1 = u64::max(count, part1);
-            continue;
-        }
+    // Transform graph into vector of vectors for faster lookups
+    let mut edges = Vec::new();
+    let mut map = FxHashMap::default();
+    for (&(x, y), _edges) in paths.iter() {
+        let from = if let Some(&id) = map.get(&(x, y)) {
+            id
+        } else {
+            let id = edges.len() as u32;
+            map.insert((x, y), id);
+            edges.push(Vec::new());
+            id
+        };
 
-        if visited.contains(&(x, y)) {
-            continue;
-        }
-        visited.insert((x, y));
+        for (&(end_x, end_y), &(path_len, sloped)) in _edges.iter() {
+            let to = if let Some(&id) = map.get(&(end_x, end_y)) {
+                id
+            } else {
+                let id = edges.len() as u32;
+                map.insert((end_x, end_y), id);
+                edges.push(Vec::new());
+                id
+            };
 
-        for (&(end_x, end_y), &(len, slope_traversable)) in paths.get(&(x, y)).unwrap().iter() {
-            if slope_traversable == false {
-                continue;
-            }
-
-            to_visit.push((end_x, end_y, count + len as u64, visited.clone()));
+            edges[from as usize].push((to, path_len, sloped));
         }
     }
 
-    let (&(real_end_x, real_end_y), &(cost_to_exit, _)) = match paths.get(&(end_x, end_y)) {
-        Some(edges) => {
-            assert!(
-                edges.len() == 1,
-                "maze exit must only be reachable via one path"
-            );
-            edges.iter().next().unwrap()
-        }
-        None => panic!("maze exit must be reachable"),
-    };
+    let start_id = *map.get(&(start_x, start_y)).unwrap();
+    let end_id = *map.get(&(end_x, end_y)).unwrap();
+    let (one_before_id, cost_to_exit, _) = edges[end_id as usize][0];
 
+    // Part 1
+    let mut part1 = 0;
+    let mut to_visit = vec![(start_id, 0, FxHashSet::default())];
+    while let Some((id, count, mut visited)) = to_visit.pop() {
+        if id == one_before_id {
+            part1 = u64::max(count + cost_to_exit as u64, part1);
+            continue;
+        }
+
+        if visited.contains(&id) {
+            continue;
+        }
+        visited.insert(id);
+
+        for (to_id, path_len, slope_traversable) in edges[id as usize].iter() {
+            if *slope_traversable {
+                to_visit.push((*to_id, count + *path_len as u64, visited.clone()));
+            }
+        }
+    }
+
+    // Part 2
     let mut part2 = 0;
-    let mut to_visit = vec![(start_x, start_y, Dir::Down, 0, FxHashSet::default())];
-    while let Some((x, y, _dir, count, mut visited)) = to_visit.pop() {
-        if x == real_end_x && y == real_end_y {
+    let mut to_visit = vec![(start_id, 0, FxHashSet::default())];
+    while let Some((id, count, mut visited)) = to_visit.pop() {
+        if id == one_before_id {
             part2 = u64::max(count + cost_to_exit as u64, part2);
             continue;
         }
-        if visited.contains(&(x, y)) {
+        if visited.contains(&id) {
             continue;
         }
-        visited.insert((x, y));
+        visited.insert(id);
 
-        for ((end_x, end_y), (path_len, _)) in paths.get(&(x, y)).unwrap() {
-            to_visit.push((
-                *end_x,
-                *end_y,
-                _dir,
-                count + *path_len as u64,
-                visited.clone(),
-            ));
+        for (to_id, path_len, _) in edges[id as usize].iter() {
+            to_visit.push((*to_id, count + *path_len as u64, visited.clone()));
         }
     }
 

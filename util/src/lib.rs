@@ -1,6 +1,8 @@
 mod bit_set;
+mod lexer;
 
 pub use bit_set::BitSet;
+pub use lexer::Lexer;
 
 #[derive(Debug, Clone)]
 pub enum Solution {

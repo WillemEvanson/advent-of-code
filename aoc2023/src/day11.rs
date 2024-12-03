@@ -1,4 +1,4 @@
-use util::Solution;
+use util::{BitSet, Solution};
 
 pub fn solve(input: &str) -> Solution {
     let (grid, pairs) = Grid::from_str(input);
@@ -44,20 +44,21 @@ impl Grid {
             height = y + 1;
         }
 
-        let mut rows_bits = BitSet::new();
+        let mut rows_bits = util::BitSet::new(height);
         for y in 0..height {
-            rows_bits.push(tiles[y * width..(y + 1) * width].contains(&Tile::Galaxy));
+            if tiles[y * width..(y + 1) * width].contains(&Tile::Galaxy) {
+                rows_bits.set(y);
+            }
         }
 
-        let mut cols_bits = BitSet::new();
+        let mut cols_bits = util::BitSet::new(width);
         'cols: for x in 0..width {
             for y in 0..height {
                 if let Tile::Galaxy = tiles[y * width + x] {
-                    cols_bits.push(true);
+                    cols_bits.set(x);
                     continue 'cols;
                 }
             }
-            cols_bits.push(false);
         }
 
         (
@@ -90,75 +91,4 @@ impl Grid {
 enum Tile {
     Galaxy,
     Empty,
-}
-
-#[derive(Debug)]
-struct BitSet {
-    bits: Vec<u32>,
-    valid: usize,
-}
-
-impl BitSet {
-    pub fn new() -> Self {
-        Self {
-            bits: Vec::new(),
-            valid: 0,
-        }
-    }
-
-    pub fn push(&mut self, value: bool) {
-        if self.valid % 32 == 0 {
-            self.bits.push(0);
-        }
-
-        let word = self.bits.last_mut().unwrap();
-        *word |= (value as u32) << (self.valid % 32);
-        self.valid += 1;
-    }
-
-    #[allow(dead_code)]
-    pub fn get(&self, idx: usize) -> bool {
-        if idx < self.valid {
-            let div = idx / 32;
-            let rem = idx % 32;
-            let word = self.bits[div];
-
-            (word & (1 << rem)) != 0
-        } else {
-            false
-        }
-    }
-
-    pub fn between(&self, start: usize, end: usize) -> u32 {
-        let div_start = start / 32;
-        let rem_start = start % 32;
-        let div_end = end / 32;
-        let rem_end = end % 32;
-
-        if div_start == div_end {
-            let mask = !((1 << rem_start) - 1) & ((1 << rem_end) - 1);
-            let word = self.bits[div_start];
-            let bits = word & mask;
-
-            bits.count_ones()
-        } else {
-            let start_mask = (u32::MAX >> rem_start) << rem_start;
-            let start_word = self.bits[div_start];
-            let start_bits = start_word & start_mask;
-
-            let mut bits = start_bits.count_ones();
-
-            for i in div_start + 1..div_end {
-                bits += self.bits[i].count_ones();
-            }
-
-            let end_mask = (1 << rem_end) - 1;
-            let end_word = self.bits[div_end];
-            let end_bits = end_word & end_mask;
-
-            bits += end_bits.count_ones();
-
-            bits
-        }
-    }
 }

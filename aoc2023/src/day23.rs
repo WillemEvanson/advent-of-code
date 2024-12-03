@@ -1,5 +1,5 @@
 use fxhash::{FxHashMap, FxHashSet};
-use util::Solution;
+use util::{BitSet, Solution};
 
 pub fn solve(input: &str) -> Solution {
     let grid = Grid::from_str(input);
@@ -148,17 +148,17 @@ pub fn solve(input: &str) -> Solution {
 
     // Part 1
     let mut part1 = 0;
-    let mut to_visit = vec![(start_id, 0, FxHashSet::default())];
+    let mut to_visit = vec![(start_id, 0, BitSet::new(edges.len()))];
     while let Some((id, count, mut visited)) = to_visit.pop() {
         if id == one_before_id {
             part1 = u64::max(count + cost_to_exit as u64, part1);
             continue;
         }
 
-        if visited.contains(&id) {
+        if visited.get(id as usize) {
             continue;
         }
-        visited.insert(id);
+        visited.set(id as usize);
 
         for (to_id, path_len, slope_traversable) in edges[id as usize].iter() {
             if *slope_traversable {
@@ -169,16 +169,16 @@ pub fn solve(input: &str) -> Solution {
 
     // Part 2
     let mut part2 = 0;
-    let mut to_visit = vec![(start_id, 0, FxHashSet::default())];
+    let mut to_visit = vec![(start_id, 0, BitSet::new(edges.len()))];
     while let Some((id, count, mut visited)) = to_visit.pop() {
         if id == one_before_id {
             part2 = u64::max(count + cost_to_exit as u64, part2);
             continue;
         }
-        if visited.contains(&id) {
+        if visited.get(id as usize) {
             continue;
         }
-        visited.insert(id);
+        visited.set(id as usize);
 
         for (to_id, path_len, _) in edges[id as usize].iter() {
             to_visit.push((*to_id, count + *path_len as u64, visited.clone()));

@@ -177,48 +177,71 @@ pub fn solve(input: &str) -> Solution {
     let (one_before_id, cost_to_exit, _) = graph[end_id as usize][0];
 
     let mut part1 = 0;
-    let mut to_visit = vec![(start_id, 0, HashSet::new())];
-    while let Some((id, count, mut visited)) = to_visit.pop() {
-        if id == one_before_id {
-            part1 = u64::max(part1, count + cost_to_exit as u64);
-            continue;
-        }
+    let mut visited = HashSet::new();
+    let mut to_visit = vec![IterationState::Visit(start_id, 0)];
+    while let Some(state) = to_visit.pop() {
+        match state {
+            IterationState::Visit(id, count) => {
+                if id == one_before_id {
+                    part1 = u64::max(part1, count + cost_to_exit as u64);
+                    continue;
+                }
 
-        visited.insert(id);
+                to_visit.push(IterationState::Unset(id));
+                visited.insert(id);
 
-        for &(to_id, length, sloped) in graph[id as usize].iter() {
-            if !sloped {
-                continue;
+                for &(to_id, length, sloped) in graph[id as usize].iter() {
+                    if !sloped {
+                        continue;
+                    }
+
+                    if visited.contains(&to_id) {
+                        continue;
+                    }
+
+                    to_visit.push(IterationState::Visit(to_id, count + length as u64));
+                }
             }
-
-            if visited.contains(&to_id) {
-                continue;
+            IterationState::Unset(id) => {
+                visited.remove(&id);
             }
-
-            to_visit.push((to_id, count + length as u64, visited.clone()));
         }
     }
 
     let mut part2 = 0;
-    let mut to_visit = vec![(start_id, 0, HashSet::new())];
-    while let Some((id, count, mut visited)) = to_visit.pop() {
-        if id == one_before_id {
-            part2 = u64::max(part2, count + cost_to_exit as u64);
-            continue;
-        }
+    let mut visited = HashSet::new();
+    let mut to_visit = vec![IterationState::Visit(start_id, 0)];
+    while let Some(state) = to_visit.pop() {
+        match state {
+            IterationState::Visit(id, count) => {
+                if id == one_before_id {
+                    part2 = u64::max(part2, count + cost_to_exit as u64);
+                    continue;
+                }
 
-        visited.insert(id);
+                to_visit.push(IterationState::Unset(id));
+                visited.insert(id);
 
-        for &(to_id, length, _) in graph[id as usize].iter() {
-            if visited.contains(&to_id) {
-                continue;
+                for &(to_id, length, _) in graph[id as usize].iter() {
+                    if visited.contains(&to_id) {
+                        continue;
+                    }
+
+                    to_visit.push(IterationState::Visit(to_id, count + length as u64));
+                }
             }
-
-            to_visit.push((to_id, count + length as u64, visited.clone()));
+            IterationState::Unset(id) => {
+                visited.remove(&id);
+            }
         }
     }
 
     Solution::from((part1, part2))
+}
+
+enum IterationState {
+    Visit(u32, u64),
+    Unset(u32),
 }
 
 #[derive(Debug, Default, Hash, Clone, Copy, PartialEq, Eq)]

@@ -1,8 +1,10 @@
 mod bit_set;
+mod lexer;
 mod random;
 mod solution;
 
 pub use bit_set::BitSet;
+pub use lexer::Lexer;
 pub use random::Rng;
 pub use solution::{Answer, Solution};
 

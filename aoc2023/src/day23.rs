@@ -159,11 +159,17 @@ pub fn solve(input: &str) -> Solution {
         }
     }
 
+    // Retrieve the single edge connected to the end node. Since we cannot revisit a
+    // node, encountering this node during the search indicates there are no further
+    // possibilities to explore.
+    let (&(one_before_x, one_before_y), cost_to_exit) =
+        paths.get(&(end_x, end_y)).unwrap().iter().next().unwrap();
+
     let mut part2 = 0;
     let mut to_visit = vec![(start_x, start_y, 0, HashSet::new())];
     while let Some((x, y, count, mut visited)) = to_visit.pop() {
-        if x == end_x && y == end_y {
-            part2 = u64::max(part2, count);
+        if x == one_before_x && y == one_before_y {
+            part2 = u64::max(part2, count + cost_to_exit);
             continue;
         }
 

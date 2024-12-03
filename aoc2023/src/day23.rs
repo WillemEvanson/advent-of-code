@@ -184,15 +184,17 @@ pub fn solve(input: &str) -> Solution {
             continue;
         }
 
-        if visited.contains(&id) {
-            continue;
-        }
         visited.insert(id);
 
         for &(to_id, length, sloped) in graph[id as usize].iter() {
             if !sloped {
                 continue;
             }
+
+            if visited.contains(&to_id) {
+                continue;
+            }
+
             to_visit.push((to_id, count + length as u64, visited.clone()));
         }
     }
@@ -205,12 +207,13 @@ pub fn solve(input: &str) -> Solution {
             continue;
         }
 
-        if visited.contains(&id) {
-            continue;
-        }
         visited.insert(id);
 
         for &(to_id, length, _) in graph[id as usize].iter() {
+            if visited.contains(&to_id) {
+                continue;
+            }
+
             to_visit.push((to_id, count + length as u64, visited.clone()));
         }
     }

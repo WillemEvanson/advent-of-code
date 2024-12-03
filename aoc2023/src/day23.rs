@@ -42,40 +42,6 @@ pub fn solve(input: &str) -> Solution {
         }
     }
 
-    let mut part1 = 0;
-    let mut to_visit = vec![(start_x, start_y, Direction::Down, 0, HashSet::new())];
-    while let Some((x, y, direction, count, mut visited)) = to_visit.pop() {
-        if x == end_x && y == end_y {
-            part1 = u64::max(part1, count);
-            continue;
-        }
-
-        if visited.contains(&(x, y)) {
-            continue;
-        }
-        visited.insert((x, y));
-
-        if let Some(&Tile::Slope(new_direction)) = grid.get_at(x, y) {
-            let (offset_x, offset_y) = new_direction.offset();
-            let (new_x, new_y) = grid.get_offset(x, y, offset_x, offset_y).unwrap();
-            to_visit.push((new_x, new_y, new_direction, count + 1, visited.clone()));
-        } else if let Some(Tile::Path) = grid.get_at(x, y) {
-            let (offset_x, offset_y) = direction.offset();
-            let (new_x, new_y) = grid.get_offset(x, y, offset_x, offset_y).unwrap();
-            to_visit.push((new_x, new_y, direction, count + 1, visited.clone()));
-
-            let new_direction = direction.left();
-            let (offset_x, offset_y) = new_direction.offset();
-            let (new_x, new_y) = grid.get_offset(x, y, offset_x, offset_y).unwrap();
-            to_visit.push((new_x, new_y, new_direction, count + 1, visited.clone()));
-
-            let new_direction = direction.right();
-            let (offset_x, offset_y) = new_direction.offset();
-            let (new_x, new_y) = grid.get_offset(x, y, offset_x, offset_y).unwrap();
-            to_visit.push((new_x, new_y, new_direction, count + 1, visited.clone()));
-        }
-    }
-
     let mut visited = HashSet::new();
     let mut paths: HashMap<_, HashMap<_, _>> = HashMap::new();
     let mut todo = vec![(start_x, start_y, Direction::Down)];
@@ -91,8 +57,18 @@ pub fn solve(input: &str) -> Solution {
         let (offset_x, offset_y) = direction.offset();
         (x, y) = grid.get_offset(x, y, offset_x, offset_y).unwrap();
 
+        let mut slope_forward = false;
+        let mut slope_backward = false;
         let mut path_length = 0;
         loop {
+            if let Some(Tile::Slope(slope_direction)) = grid.get_at(x, y) {
+                if *slope_direction == direction {
+                    slope_forward = true;
+                } else {
+                    slope_backward = true;
+                }
+            }
+
             let mut straight = false;
             let (offset_x, offset_y) = direction.offset();
             if let Some(Tile::Path | Tile::Slope(_)) = grid.get_at_offset(x, y, offset_x, offset_y)
@@ -154,8 +130,14 @@ pub fn solve(input: &str) -> Solution {
             let start = (start_x, start_y);
             let end = (x, y);
 
-            paths.entry(start).or_default().insert(end, path_length + 1);
-            paths.entry(end).or_default().insert(start, path_length + 1);
+            paths
+                .entry(start)
+                .or_default()
+                .insert(end, (path_length + 1, slope_forward));
+            paths
+                .entry(end)
+                .or_default()
+                .insert(start, (path_length + 1, slope_backward));
         }
     }
 
@@ -165,7 +147,7 @@ pub fn solve(input: &str) -> Solution {
     for (&(x, y), edges) in paths.iter() {
         fn generate_id(
             map: &mut HashMap<(u32, u32), u32>,
-            edges: &mut Vec<Vec<(u32, u32)>>,
+            edges: &mut Vec<Vec<(u32, u32, bool)>>,
             x: u32,
             y: u32,
         ) -> u32 {
@@ -180,9 +162,9 @@ pub fn solve(input: &str) -> Solution {
         }
 
         let from = generate_id(&mut map, &mut graph, x, y);
-        for (&(end_x, end_y), &path_length) in edges.iter() {
+        for (&(end_x, end_y), &(path_length, sloped)) in edges.iter() {
             let to = generate_id(&mut map, &mut graph, end_x, end_y);
-            graph[from as usize].push((to, path_length));
+            graph[from as usize].push((to, path_length, sloped));
         }
     }
 
@@ -192,7 +174,28 @@ pub fn solve(input: &str) -> Solution {
     // Retrieve the single edge connected to the end node. Since we cannot revisit a
     // node, encountering this node during the search indicates there are no further
     // possibilities to explore.
-    let (one_before_id, cost_to_exit) = graph[end_id as usize][0];
+    let (one_before_id, cost_to_exit, _) = graph[end_id as usize][0];
+
+    let mut part1 = 0;
+    let mut to_visit = vec![(start_id, 0, HashSet::new())];
+    while let Some((id, count, mut visited)) = to_visit.pop() {
+        if id == one_before_id {
+            part1 = u64::max(part1, count + cost_to_exit as u64);
+            continue;
+        }
+
+        if visited.contains(&id) {
+            continue;
+        }
+        visited.insert(id);
+
+        for &(to_id, length, sloped) in graph[id as usize].iter() {
+            if !sloped {
+                continue;
+            }
+            to_visit.push((to_id, count + length as u64, visited.clone()));
+        }
+    }
 
     let mut part2 = 0;
     let mut to_visit = vec![(start_id, 0, HashSet::new())];
@@ -207,7 +210,7 @@ pub fn solve(input: &str) -> Solution {
         }
         visited.insert(id);
 
-        for &(to_id, length) in graph[id as usize].iter() {
+        for &(to_id, length, _) in graph[id as usize].iter() {
             to_visit.push((to_id, count + length as u64, visited.clone()));
         }
     }

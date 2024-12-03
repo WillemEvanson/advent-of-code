@@ -3,6 +3,7 @@ mod solution;
 pub mod bit_set;
 pub mod direction;
 pub mod grid;
+pub mod lexer;
 pub mod math;
 pub mod rng;
 

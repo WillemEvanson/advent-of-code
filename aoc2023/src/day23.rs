@@ -175,6 +175,27 @@ pub fn solve(input: &str) -> Solution {
         }
     }
 
+    // Prune edges which, if taken, would require touching a node twice to reach the
+    // end. These edges are those along the outside of the graph which move toward
+    // the start.
+    let mut visited = BitSet::new(edges.len());
+    let mut stack = vec![start_id];
+    while let Some(id) = stack.pop() {
+        edges[id as usize].retain(|&(to_id, _, _)| !visited.get(to_id as usize));
+        visited.set(id as usize);
+
+        for &(to_id, _, _) in edges[id as usize].iter() {
+            if visited.get(to_id as usize) || to_id == one_before_id {
+                continue;
+            }
+
+            if edges[to_id as usize].len() == 3 {
+                stack.push(to_id);
+                continue;
+            }
+        }
+    }
+
     let mut part2 = 0;
     let mut visited = BitSet::new(edges.len());
     let mut stack = vec![RecursionState::Visit(start_id, 0)];

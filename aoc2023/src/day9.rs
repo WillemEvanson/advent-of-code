@@ -45,9 +45,9 @@ pub fn solve(input: &str) -> Solution {
             i -= 1;
         }
 
-        part1 += *numbers[0].back().unwrap() as u64;
-        part2 += *numbers[0].front().unwrap() as u64;
+        part1 += *numbers[0].back().unwrap() as i64;
+        part2 += *numbers[0].front().unwrap() as i64;
     }
 
-    Solution::from((part1, part2))
+    Solution::from((part1 as u64, part2 as u64))
 }

@@ -159,27 +159,56 @@ pub fn solve(input: &str) -> Solution {
         }
     }
 
+    // Transform the graph into a vector of vectors for faster lookups.
+    let mut graph = Vec::new();
+    let mut map = HashMap::new();
+    for (&(x, y), edges) in paths.iter() {
+        fn generate_id(
+            map: &mut HashMap<(u32, u32), u32>,
+            edges: &mut Vec<Vec<(u32, u32)>>,
+            x: u32,
+            y: u32,
+        ) -> u32 {
+            if let Some(&id) = map.get(&(x, y)) {
+                id
+            } else {
+                let id = edges.len() as u32;
+                edges.push(Vec::new());
+                map.insert((x, y), id);
+                id
+            }
+        }
+
+        let from = generate_id(&mut map, &mut graph, x, y);
+        for (&(end_x, end_y), &path_length) in edges.iter() {
+            let to = generate_id(&mut map, &mut graph, end_x, end_y);
+            graph[from as usize].push((to, path_length));
+        }
+    }
+
+    let start_id = *map.get(&(start_x, start_y)).unwrap();
+    let end_id = *map.get(&(end_x, end_y)).unwrap();
+
     // Retrieve the single edge connected to the end node. Since we cannot revisit a
     // node, encountering this node during the search indicates there are no further
     // possibilities to explore.
-    let (&(one_before_x, one_before_y), cost_to_exit) =
-        paths.get(&(end_x, end_y)).unwrap().iter().next().unwrap();
+    let (one_before_id, cost_to_exit) = graph[end_id as usize][0];
 
     let mut part2 = 0;
-    let mut to_visit = vec![(start_x, start_y, 0, HashSet::new())];
-    while let Some((x, y, count, mut visited)) = to_visit.pop() {
-        if x == one_before_x && y == one_before_y {
-            part2 = u64::max(part2, count + cost_to_exit);
+    let mut to_visit = vec![(start_id, 0, HashSet::new())];
+    while let Some((id, count, mut visited)) = to_visit.pop() {
+        if id == one_before_id {
+            part2 = u64::max(part2, count + cost_to_exit as u64);
             continue;
         }
 
-        if visited.contains(&(x, y)) {
+        if visited.contains(&id) {
             continue;
         }
-        visited.insert((x, y));
+        visited.insert(id);
 
-        for (&(end_x, end_y), length) in paths.get(&(x, y)).unwrap() {
-            to_visit.push((end_x, end_y, count + length, visited.clone()));
+        for &(to_id, length) in graph[id as usize].iter() {
+            to_visit.push((to_id, count + length as u64, visited.clone()));
         }
     }
 

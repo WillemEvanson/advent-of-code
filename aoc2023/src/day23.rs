@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use util::Solution;
+use util::{BitSet, Solution};
 
 pub fn solve(input: &str) -> Solution {
     let grid = Grid::from_str(input);
@@ -34,7 +34,7 @@ pub fn solve(input: &str) -> Solution {
         let mut slope_forward = false;
         let mut slope_backward = false;
 
-        let mut path_len = 0;
+        let mut path_len = 0u32;
         loop {
             if let Some(Tile::Slope(slope_dir)) = grid.get_tile(x, y) {
                 if slope_dir == dir {
@@ -118,54 +118,66 @@ pub fn solve(input: &str) -> Solution {
         }
     }
 
-    let (&(real_end_x, real_end_y), &(cost_to_exit, _)) = match paths.get(&(end_x, end_y)) {
-        Some(edges) => {
-            assert!(
-                edges.len() == 1,
-                "maze exit must only be reachable via one path"
-            );
-            edges.iter().next().unwrap()
+    // Transform graph into vector of vectors for faster lookups
+    let mut edges = Vec::new();
+    let mut map = HashMap::new();
+    for (&(x, y), node_edges) in paths.iter() {
+        let from = if let Some(&id) = map.get(&(x, y)) {
+            id
+        } else {
+            let id = edges.len() as u32;
+            map.insert((x, y), id);
+            edges.push(Vec::new());
+            id
+        };
+
+        for (&(end_x, end_y), &(path_len, sloped)) in node_edges.iter() {
+            let to = if let Some(&id) = map.get(&(end_x, end_y)) {
+                id
+            } else {
+                let id = edges.len() as u32;
+                map.insert((end_x, end_y), id);
+                edges.push(Vec::new());
+                id
+            };
+
+            edges[from as usize].push((to, path_len, sloped));
         }
-        None => panic!("maze exit must be reachable"),
-    };
+    }
+
+    let start_id = *map.get(&(start_x, start_y)).unwrap();
+    let end_id = *map.get(&(end_x, end_y)).unwrap();
+    let (one_before_id, cost_to_exit, _) = edges[end_id as usize][0];
 
     let mut part1 = 0;
-    let mut to_visit = vec![(start_x, start_y, 0, HashSet::new())];
-    while let Some((x, y, count, mut visited)) = to_visit.pop() {
-        if x == real_end_x && y == real_end_y {
-            part1 = u64::max(count + cost_to_exit, part1);
+    let mut to_visit = vec![(start_id, 0, BitSet::new(edges.len()))];
+    while let Some((id, count, mut visited)) = to_visit.pop() {
+        if id == one_before_id {
+            part1 = u64::max(count + cost_to_exit as u64, part1);
             continue;
         }
+        visited.set(id as usize);
 
-        if visited.contains(&(x, y)) {
-            continue;
-        }
-        visited.insert((x, y));
-
-        for (&(end_x, end_y), &(len, slope_traversable)) in paths.get(&(x, y)).unwrap().iter() {
-            if !slope_traversable {
-                continue;
+        for &(to_id, len, slope_traversable) in edges[id as usize].iter() {
+            if slope_traversable && !visited.get(to_id as usize) {
+                to_visit.push((to_id, count + len as u64, visited.clone()));
             }
-
-            to_visit.push((end_x, end_y, count + len, visited.clone()));
         }
     }
 
     let mut part2 = 0;
-    let mut to_visit = vec![(start_x, start_y, 0, HashSet::new())];
-    while let Some((x, y, count, mut visited)) = to_visit.pop() {
-        if x == real_end_x && y == real_end_y {
-            part2 = u64::max(count + cost_to_exit, part2);
+    let mut to_visit = vec![(start_id, 0, BitSet::new(edges.len()))];
+    while let Some((id, count, mut visited)) = to_visit.pop() {
+        if id == one_before_id {
+            part2 = u64::max(count + cost_to_exit as u64, part2);
             continue;
         }
+        visited.set(id as usize);
 
-        if visited.contains(&(x, y)) {
-            continue;
-        }
-        visited.insert((x, y));
-
-        for (&(end_x, end_y), &(len, _)) in paths.get(&(x, y)).unwrap() {
-            to_visit.push((end_x, end_y, count + len, visited.clone()));
+        for &(to_id, len, _) in edges[id as usize].iter() {
+            if !visited.get(to_id as usize) {
+                to_visit.push((to_id, count + len as u64, visited.clone()));
+            }
         }
     }
 

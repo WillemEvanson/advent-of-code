@@ -15,17 +15,19 @@ pub fn solve(input: &str) -> Solution {
         }
     }
 
-    let mut visited = HashSet::new();
+    let mut next_count = 0;
+    let mut current_count = 0;
     let mut next = Vec::new();
     let mut current = vec![(start_x, start_y)];
-    for _ in 0..64 {
-        visited.clear();
+    let mut visiteds: [HashSet<_>; 3] = core::array::from_fn(|_| HashSet::new());
+    for _ in 0..=64 {
+        visiteds[0].clear();
         while let Some((x, y)) = current.pop() {
-            if visited.contains(&(x, y)) {
+            if visiteds[0].contains(&(x, y)) || visiteds[2].contains(&(x, y)) {
                 continue;
             }
+            visiteds[0].insert((x, y));
 
-            visited.insert((x, y));
             if let Some(Tile::Garden | Tile::Start) = grid.get(x - 1, y) {
                 next.push((x - 1, y));
             }
@@ -39,34 +41,38 @@ pub fn solve(input: &str) -> Solution {
                 next.push((x, y + 1));
             }
         }
+        current_count += visiteds[0].len() as u64;
 
         std::mem::swap(&mut current, &mut next);
+        std::mem::swap(&mut current_count, &mut next_count);
+
+        visiteds.swap(0, 2);
+        visiteds.swap(1, 2);
     }
-    current.sort();
-    current.dedup();
-    let part1 = current.len() as u64;
+    let part1 = next_count;
 
-    visited.clear();
+    next_count = 0;
+    current_count = 0;
     next.clear();
-
     current.clear();
     current.push((start_x, start_y));
+    visiteds[0].clear();
+    visiteds[1].clear();
+    visiteds[2].clear();
     let mut priors = Vec::new();
-
-    let lcm = lcm(grid.width as u64, grid.height as u64);
-
-    for i in 0..=lcm * 10 {
-        if i >= 3 * lcm {
+    let dim_lcm = lcm(grid.width as u64, grid.height as u64);
+    for i in 0..=dim_lcm * 10 {
+        if i >= 3 * dim_lcm {
             let mut i = i;
             #[allow(clippy::identity_op)]
             while i <= 26501365 {
-                let x3 = priors[priors.len() - 1 * lcm as usize - 0];
-                let x2 = priors[priors.len() - 1 * lcm as usize - 1];
+                let x3 = priors[priors.len() - 1 * dim_lcm as usize - 0];
+                let x2 = priors[priors.len() - 1 * dim_lcm as usize - 1];
 
                 let y1 = x3 - x2;
 
-                let x1 = priors[priors.len() - 2 * lcm as usize - 0];
-                let x0 = priors[priors.len() - 2 * lcm as usize - 1];
+                let x1 = priors[priors.len() - 2 * dim_lcm as usize - 0];
+                let x0 = priors[priors.len() - 2 * dim_lcm as usize - 1];
 
                 let y0 = x1 - x0;
 
@@ -78,12 +84,13 @@ pub fn solve(input: &str) -> Solution {
             break;
         }
 
+        visiteds[0].clear();
         while let Some((x, y)) = current.pop() {
-            if visited.contains(&(x, y)) {
+            if visiteds[0].contains(&(x, y)) || visiteds[2].contains(&(x, y)) {
                 continue;
             }
+            visiteds[0].insert((x, y));
 
-            visited.insert((x, y));
             if let Some(Tile::Garden | Tile::Start) = grid.get(
                 (x - 1).rem_euclid(grid.width as i64),
                 y.rem_euclid(grid.height as i64),
@@ -109,10 +116,14 @@ pub fn solve(input: &str) -> Solution {
                 next.push((x, y + 1));
             }
         }
-        priors.push(visited.len() as u64);
+        current_count += visiteds[0].len() as u64;
+        priors.push(current_count);
 
         std::mem::swap(&mut current, &mut next);
-        visited.clear();
+        std::mem::swap(&mut current_count, &mut next_count);
+
+        visiteds.swap(0, 2);
+        visiteds.swap(1, 2);
     }
     let part2 = *priors.last().unwrap();
 

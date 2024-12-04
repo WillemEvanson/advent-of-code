@@ -177,6 +177,15 @@ pub fn solve(input: &str) -> Solution {
     // possibilities to explore.
     let (one_before_id, cost_to_exit, _) = graph[end_id as usize][0];
 
+    // For each node, find the maximum possible amount that going to that node could
+    // give. We can use this to bound the maximum possible remaining path length.
+    let mut best_possible = vec![0; graph.len()];
+    for (i, edges) in graph.iter().enumerate() {
+        for &(_, path_len, _) in edges.iter() {
+            best_possible[i] = u32::max(best_possible[i], path_len);
+        }
+    }
+
     // Prune edges which, if taken, would require touching a node twice to reach the
     // end. These edges are those along the outside of the graph which move toward
     // the start.
@@ -231,6 +240,11 @@ pub fn solve(input: &str) -> Solution {
     }
 
     let mut part2 = 0;
+    let mut best_remaining = best_possible
+        .iter()
+        .filter(|i| **i != start_id)
+        .map(|i| *i as u64)
+        .sum::<u64>();
     let mut visited = BitSet::new(graph.len() as u32);
     let mut to_visit = vec![IterationState::Visit(start_id, 0)];
     while let Some(state) = to_visit.pop() {
@@ -242,6 +256,7 @@ pub fn solve(input: &str) -> Solution {
                 }
 
                 to_visit.push(IterationState::Unset(id));
+                best_remaining -= best_possible[id as usize] as u64;
                 visited.set(id);
 
                 for &(to_id, length, _) in graph[id as usize].iter() {
@@ -249,10 +264,16 @@ pub fn solve(input: &str) -> Solution {
                         continue;
                     }
 
+                    let new_best_remaining = best_remaining - best_possible[to_id as usize] as u64;
+                    if count + length as u64 + new_best_remaining < part2 {
+                        continue;
+                    }
+
                     to_visit.push(IterationState::Visit(to_id, count + length as u64));
                 }
             }
             IterationState::Unset(id) => {
+                best_remaining += best_possible[id as usize] as u64;
                 visited.unset(id);
             }
         }

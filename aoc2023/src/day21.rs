@@ -28,16 +28,18 @@ pub fn solve(input: &str) -> Solution {
         }
     }
 
+    let mut next_count = 0;
+    let mut current_count = 0;
     let mut next = Vec::new();
     let mut current = vec![(start_x, start_y)];
-    let mut visited = HashSet::new();
-    for _ in 0..64 {
-        visited.clear();
+    let mut visiteds: [_; 3] = core::array::from_fn(|_| HashSet::new());
+    for _ in 0..=64 {
+        visiteds[0].clear();
         while let Some((x, y)) = current.pop() {
-            if visited.contains(&(x, y)) {
+            if visiteds[0].contains(&(x, y)) || visiteds[2].contains(&(x, y)) {
                 continue;
             }
-            visited.insert((x, y));
+            visiteds[0].insert((x, y));
 
             if let Some(Tile::Garden) = grid.get_at_offset(x, y, -1, 0) {
                 next.push((x - 1, y));
@@ -52,26 +54,31 @@ pub fn solve(input: &str) -> Solution {
                 next.push((x, y + 1));
             }
         }
+        current_count += visiteds[0].len() as u64;
 
         std::mem::swap(&mut current, &mut next);
-    }
-    current.sort();
-    current.dedup();
-    let part1 = current.len() as u64;
+        std::mem::swap(&mut current_count, &mut next_count);
 
+        visiteds.swap(0, 2);
+        visiteds.swap(1, 2);
+    }
+    let part1 = next_count;
+
+    let mut next_count = 0;
+    let mut current_count = 0;
     let mut priors = Vec::new();
     let mut next = Vec::new();
     let mut current = vec![(start_x as i64, start_y as i64)];
-    let mut visited = HashSet::new();
+    let mut visiteds: [_; 3] = core::array::from_fn(|_| HashSet::new());
     let dim_lcm = lcm(grid.width() as u64, grid.height() as u64);
     let iter_until = 2 * dim_lcm + 1;
     for _ in 0..=iter_until {
-        visited.clear();
+        visiteds[0].clear();
         while let Some((x, y)) = current.pop() {
-            if visited.contains(&(x, y)) {
+            if visiteds[0].contains(&(x, y)) || visiteds[2].contains(&(x, y)) {
                 continue;
             }
-            visited.insert((x, y));
+            visiteds[0].insert((x, y));
 
             let new_y = y.rem_euclid(grid.height() as i64) as u32;
             let new_x = (x - 1).rem_euclid(grid.width() as i64) as u32;
@@ -95,9 +102,14 @@ pub fn solve(input: &str) -> Solution {
                 next.push((x, y + 1));
             }
         }
-        priors.push(visited.len() as u64);
+        current_count += visiteds[0].len() as u64;
+        priors.push(current_count);
 
         std::mem::swap(&mut current, &mut next);
+        std::mem::swap(&mut current_count, &mut next_count);
+
+        visiteds.swap(0, 2);
+        visiteds.swap(1, 2);
     }
 
     let mut i = iter_until;

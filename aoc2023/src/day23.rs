@@ -196,8 +196,22 @@ pub fn solve(input: &str) -> Solution {
         }
     }
 
+    // Find the edge that has the greatest length for each node. We use this a
+    // bound for the maximum possible path length remaining.
+    let mut best_possible = vec![0; edges.len()];
+    for (i, edges) in edges.iter().enumerate() {
+        for &(_, path_len, _) in edges.iter() {
+            best_possible[i] = u32::max(best_possible[i], path_len);
+        }
+    }
+
     let mut part2 = 0;
     let mut visited = BitSet::new(edges.len());
+    let mut best_remaining = best_possible
+        .iter()
+        .filter(|i| **i != start_id)
+        .map(|i| *i as u64)
+        .sum::<u64>();
     let mut stack = vec![RecursionState::Visit(start_id, 0)];
     while let Some(state) = stack.pop() {
         match state {
@@ -207,16 +221,23 @@ pub fn solve(input: &str) -> Solution {
                     continue;
                 }
 
+                best_remaining -= best_possible[id as usize] as u64;
                 visited.set(id as usize);
                 stack.push(RecursionState::Unset(id));
 
                 for &(to_id, len, _) in edges[id as usize].iter() {
+                    let new_best_remaining = best_remaining - best_possible[to_id as usize] as u64;
+                    if count + len as u64 + new_best_remaining < part2 {
+                        continue;
+                    }
+
                     if !visited.get(to_id as usize) {
                         stack.push(RecursionState::Visit(to_id, count + len as u64));
                     }
                 }
             }
             RecursionState::Unset(id) => {
+                best_remaining += best_possible[id as usize] as u64;
                 visited.reset(id as usize);
             }
         }

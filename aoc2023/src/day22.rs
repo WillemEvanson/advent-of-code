@@ -1,38 +1,101 @@
-use util::Solution;
+use util::{BitSet, Solution};
 
 pub fn solve(input: &str) -> Solution {
+    let mut max_x = 0;
+    let mut max_y = 0;
     let mut bricks = Vec::new();
     for line in input.lines() {
         let (start, end) = line.split_once('~').unwrap();
-        let start: [u64; 3] = start
+        let start: [u32; 3] = start
             .split(',')
-            .map(|str| str.parse::<u64>().unwrap())
+            .map(|str| str.parse::<u32>().unwrap())
             .array_chunks()
             .next()
             .unwrap();
-        let end: [u64; 3] = end
+        let end: [u32; 3] = end
             .split(',')
-            .map(|str| str.parse::<u64>().unwrap())
+            .map(|str| str.parse::<u32>().unwrap())
             .array_chunks()
             .next()
             .unwrap();
 
         bricks.push(Bounds::new(Vec3::from(start), Vec3::from(end)));
+
+        max_x = u32::max(max_x, start[0]);
+        max_x = u32::max(max_x, end[0]);
+        max_y = u32::max(max_y, start[0]);
+        max_y = u32::max(max_y, end[0]);
     }
     bricks.sort_by_key(|bounds| bounds.min.z);
-    fall(&mut bricks);
+
+    let mut edges = vec![(Vec::new(), Vec::new()); bricks.len()];
+    let mut heightmap = vec![vec![0; max_x as usize + 1]; max_y as usize + 1];
+    for i in 0..bricks.len() {
+        let mut bounds = bricks[i];
+
+        // Determine where we can drop to
+        let mut max_z = 0;
+        for x in bounds.min.x..=bounds.max.x {
+            for y in bounds.min.y..=bounds.max.y {
+                max_z = u32::max(max_z, heightmap[y as usize][x as usize]);
+            }
+        }
+
+        // Drop the brick to that location
+        let offset_z = bounds.min.z - (max_z + 1);
+        bounds.min.z -= offset_z;
+        bounds.max.z -= offset_z;
+        bricks[i] = bounds;
+
+        // Update heightmap
+        for x in bounds.min.x..=bounds.max.x {
+            for y in bounds.min.y..=bounds.max.y {
+                let tile = &mut heightmap[y as usize][x as usize];
+                *tile = u32::max(bounds.max.z, *tile);
+            }
+        }
+
+        // Calcalate which boxes are supporting this brick.
+        bounds.min.z -= 1;
+        let mut supported_by = Vec::new();
+        for (j, brick) in bricks.iter().enumerate().take(i) {
+            if brick.intersects(bounds) {
+                supported_by.push(j as u32);
+            }
+        }
+
+        for &j in supported_by.iter() {
+            edges[j as usize].0.push(i as u32);
+        }
+        edges[i].1 = supported_by;
+    }
 
     let mut part1 = 0;
     let mut part2 = 0;
+    let mut stack = Vec::new();
+    let mut falling = BitSet::new(bricks.len());
     for i in 0..bricks.len() {
-        let mut bricks_ = bricks.clone();
-        bricks_.remove(i);
+        stack.clear();
+        falling.clear();
 
-        let count = fall(&mut bricks_);
-        if count == 0 {
-            part1 += 1;
+        stack.push(i as u32);
+        falling.set(i);
+        while let Some(i) = stack.pop() {
+            for &j in edges[i as usize].0.iter() {
+                if !falling.get(j as usize)
+                    && edges[j as usize].1.iter().all(|k| falling.get(*k as usize))
+                {
+                    falling.set(j as usize);
+                    stack.push(j);
+                }
+            }
         }
-        part2 += count;
+
+        if falling.count() - 1 == 0 {
+            part1 += 1;
+        } else {
+            part2 += falling.count() as u64 - 1;
+        }
     }
 
     Solution::from((part1, part2))
@@ -70,13 +133,13 @@ impl Bounds {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Vec3 {
-    x: u64,
-    y: u64,
-    z: u64,
+    x: u32,
+    y: u32,
+    z: u32,
 }
 
-impl From<[u64; 3]> for Vec3 {
-    fn from(value: [u64; 3]) -> Self {
+impl From<[u32; 3]> for Vec3 {
+    fn from(value: [u32; 3]) -> Self {
         Self {
             x: value[0],
             y: value[1],
@@ -88,17 +151,17 @@ impl From<[u64; 3]> for Vec3 {
 impl Vec3 {
     pub fn min(self, other: Vec3) -> Vec3 {
         Self {
-            x: u64::min(self.x, other.x),
-            y: u64::min(self.y, other.y),
-            z: u64::min(self.z, other.z),
+            x: u32::min(self.x, other.x),
+            y: u32::min(self.y, other.y),
+            z: u32::min(self.z, other.z),
         }
     }
 
     pub fn max(self, other: Vec3) -> Vec3 {
         Self {
-            x: u64::max(self.x, other.x),
-            y: u64::max(self.y, other.y),
-            z: u64::max(self.z, other.z),
+            x: u32::max(self.x, other.x),
+            y: u32::max(self.y, other.y),
+            z: u32::max(self.z, other.z),
         }
     }
 }
@@ -107,30 +170,4 @@ impl std::fmt::Display for Vec3 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{},{},{}", self.x, self.y, self.z)
     }
-}
-
-fn fall(bricks: &mut [Bounds]) -> u64 {
-    let mut fallen = 0;
-    for i in 0..bricks.len() {
-        let mut bounds = bricks[i];
-
-        let mut count = 0;
-        'fall: while bounds.min.z != 1 {
-            bounds.max.z -= 1;
-            bounds.min.z -= 1;
-
-            for j in (0..i).rev() {
-                if bricks[j].intersects(bounds) {
-                    break 'fall;
-                }
-            }
-            bricks[i] = bounds;
-            count += 1;
-        }
-
-        if count != 0 {
-            fallen += 1;
-        }
-    }
-    fallen
 }

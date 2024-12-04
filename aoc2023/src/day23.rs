@@ -175,6 +175,27 @@ pub fn solve(input: &str) -> Solution {
         }
     }
 
+    // Compute minimum steps from each node to end node
+    let mut max_distance = 0;
+    let mut bfs = vec![(end_id, 0)];
+    let mut distances = vec![u32::MAX; edges.len()];
+    while let Some((id, distance)) = bfs.pop() {
+        if distances[id as usize] <= distance {
+            continue;
+        }
+
+        distances[id as usize] = distance;
+        max_distance = u32::max(max_distance, distance);
+        for &(to, _, _) in edges[id as usize].iter() {
+            bfs.push((to, distance + 1));
+        }
+    }
+
+    let mut level_sets = vec![0u8; max_distance as usize + 1];
+    for &dist in distances.iter() {
+        level_sets[dist as usize] += 1;
+    }
+
     // Prune edges which, if taken, would require touching a node twice to reach the
     // end. These edges are those along the outside of the graph which move toward
     // the start.
@@ -220,12 +241,20 @@ pub fn solve(input: &str) -> Solution {
                     part2 = u64::max(count + cost_to_exit as u64, part2);
                     continue;
                 }
+                let current_distance = distances[id as usize];
 
                 best_remaining -= best_possible[id as usize] as u64;
+                level_sets[current_distance as usize] -= 1;
                 visited.set(id as usize);
                 stack.push(RecursionState::Unset(id));
 
                 for &(to_id, len, _) in edges[id as usize].iter() {
+                    if level_sets[current_distance as usize] == 0
+                        && distances[to_id as usize] >= current_distance
+                    {
+                        continue;
+                    }
+
                     let new_best_remaining = best_remaining - best_possible[to_id as usize] as u64;
                     if count + len as u64 + new_best_remaining < part2 {
                         continue;
@@ -238,6 +267,7 @@ pub fn solve(input: &str) -> Solution {
             }
             RecursionState::Unset(id) => {
                 best_remaining += best_possible[id as usize] as u64;
+                level_sets[distances[id as usize] as usize] += 1;
                 visited.reset(id as usize);
             }
         }

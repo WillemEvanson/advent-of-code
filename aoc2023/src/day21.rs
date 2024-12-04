@@ -112,9 +112,13 @@ pub fn solve(input: &str) -> Solution {
         visiteds.swap(1, 2);
     }
 
-    let mut i = iter_until;
+    // Compute the difference between the number of cells able to be visited. We can
+    // then use this to compute the difference between the offsets for each step,
+    // which will allow us to skip storing the entire array.
+    let mut i = 2 * dim_lcm + 1;
+    let mut offsets = Vec::new();
     #[allow(clippy::identity_op)]
-    while i < 26501365 {
+    while i <= 4 * dim_lcm + 1 {
         let x3 = priors[priors.len() - 1 * dim_lcm as usize - 0];
         let x2 = priors[priors.len() - 1 * dim_lcm as usize - 1];
 
@@ -125,12 +129,30 @@ pub fn solve(input: &str) -> Solution {
 
         let y0 = x1 - x0;
 
-        let v0 = priors.last().unwrap() + 2 * y1 - y0;
+        let offset = 2 * y1 - y0;
+        let v0 = priors.last().unwrap() + offset;
+
+        offsets.push(offset);
         priors.push(v0);
 
         i += 1;
     }
-    let part2 = *priors.last().unwrap();
+
+    let mut offset_diffs = Vec::new();
+    for i in 0..dim_lcm as usize {
+        let y0 = offsets[i];
+        let y1 = offsets[dim_lcm as usize + i];
+        offset_diffs.push(y1 - y0);
+    }
+
+    let mut current_num = *priors.last().unwrap();
+    while i <= 26501365 {
+        let idx = ((i - 1) % dim_lcm) as usize;
+        let o1 = offsets[idx] + ((i - 1) / dim_lcm - 2) * offset_diffs[idx];
+        current_num += o1;
+        i += 1;
+    }
+    let part2 = current_num;
 
     Solution::from((part1, part2))
 }

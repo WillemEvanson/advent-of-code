@@ -6,6 +6,7 @@ pub mod grid;
 pub mod lexer;
 pub mod math;
 pub mod rng;
+pub mod union_find;
 
 pub use solution::{Answer, Solution};
 

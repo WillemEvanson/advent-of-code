@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use util::rng::Rng;
+use util::union_find::UnionFind;
 use util::Solution;
 
 pub fn solve(input: &str) -> Solution {
@@ -36,64 +37,57 @@ pub fn solve(input: &str) -> Solution {
 
     let mut rng = Rng::new(0);
     let result = loop {
-        let (remaining_edges, merged) = contract(&mut rng, edges.clone(), back.len());
-        if remaining_edges == 3 {
-            let mut counts = vec![1; back.len()];
-            for (to, from) in merged {
-                counts[to as usize] += counts[from as usize];
-                counts[from as usize] = 0;
-            }
-            let mut first = 0;
-            let mut second = 0;
-            for i in counts {
-                if i != 0 {
-                    if first == 0 {
-                        first = i;
-                    } else {
-                        second = i;
-                        break;
-                    }
+        // Use Karger's algorithm to try to find the minimum cut for the graph. We know
+        // that it must be 3, so we terminate upon finding a min_cut of 3.
+        let (min_cut, mut find) = contract(&mut rng, edges.clone(), back.len());
+        if min_cut == 3 {
+            // Karger's algorithm merges nodes together until there are only two nodes. This
+            // means that we only need to check for one of two nodes.
+            let mut counts = [0; 2];
+            let first = find.find(0);
+            for i in 0..back.len() {
+                if find.find(i as u32) == first {
+                    counts[0] += 1;
+                } else {
+                    counts[1] += 1;
                 }
             }
-            break first * second;
+
+            break counts[0] * counts[1];
         }
     };
 
     Solution::from(result)
 }
 
-fn contract(rng: &mut Rng, mut edges: Vec<(u32, u32)>, mut n: usize) -> (u32, Vec<(u32, u32)>) {
-    let mut merged = Vec::new();
-
-    while n > 2 {
-        let idx = rng.gen_bounded_u32(edges.len() as u32) as usize;
-        let (v0, v1) = edges.remove(idx);
-        merged.push((v0, v1));
-
-        for (p0, p1) in edges.iter_mut() {
-            if v0 == *p0 {
-                *p0 = v0;
-            } else if v0 == *p1 {
-                *p1 = v0;
-            }
-
-            if v1 == *p0 {
-                *p0 = v0;
-            } else if v1 == *p1 {
-                *p1 = v0;
-            }
-        }
-
-        let mut j = 0;
-        while j < edges.len() {
-            if edges[j].0 == edges[j].1 {
-                edges.swap_remove(j);
-            } else {
-                j += 1;
-            }
-        }
-
-        n -= 1;
+/// Karger's algorithm using Kruskal's algorithm and a disjoint-forest for the
+/// minimum spanning results in a much faster execution time than the naive
+/// implementation.
+fn contract(rng: &mut Rng, mut edges: Vec<(u32, u32)>, n: usize) -> (u32, UnionFind) {
+    // Fisher-Yates shuffle
+    for i in 0..edges.len() - 2 {
+        let j = i + rng.gen_bounded_u32(edges.len() as u32 - i as u32) as usize;
+        edges.swap(i, j);
     }
-    (edges.len() as u32, merged)
+
+    let mut remaining_components = n;
+    let mut union_find = UnionFind::new(n as u32);
+    for &(u, v) in edges.iter() {
+        if union_find.find(u) != union_find.find(v) {
+            union_find.merge(u, v);
+            remaining_components -= 1;
+        }
+        if remaining_components == 2 {
+            break;
+        }
+    }
+
+    let mut min_cut = 0;
+    for &(u, v) in edges.iter() {
+        if union_find.find(u) != union_find.find(v) {
+            min_cut += 1;
+        }
+    }
+
+    (min_cut, union_find)
 }

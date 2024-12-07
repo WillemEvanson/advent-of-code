@@ -1,11 +1,16 @@
-use bimap::BiMap;
+use std::collections::HashMap;
 
-fn add<'a>(map: &mut BiMap<&'a str, u32>, node: &'a str) -> u32 {
-    if let Some(i) = map.get_by_left(node) {
+fn add_<'a>(
+    graph: &mut Vec<(u32, u32)>,
+    map: &mut HashMap<&'a str, u32>,
+    node: &'a str,
+) -> u32 {
+    if let Some(i) = map.get(node) {
         *i
     } else {
         let i = map.len() as u32;
         map.insert(node, i);
+        graph.push((0, 0));
         i
     }
 }
@@ -15,33 +20,31 @@ use util::Solution;
 pub fn solve(input: &str) -> Solution {
     let (sequence, nodes) = input.split_once("\n\n").unwrap();
 
-    let mut map = BiMap::with_capacity(1024);
-    let mut graph = nodes
-        .lines()
-        .map(|str| {
-            let (node, children) = str.split_once(" = ").unwrap();
-            let (child0, child1) = children.split_once(',').unwrap();
+    let mut map = HashMap::new();
+    let mut graph = Vec::new();
+    for line in nodes.lines() {
+        let (node, children) = line.split_once(" = ").unwrap();
+        let (child0, child1) = children.split_once(',').unwrap();
 
-            let child0 = child0.trim_matches(|c: char| !c.is_ascii_alphanumeric());
-            let child1 = child1.trim_matches(|c: char| !c.is_ascii_alphanumeric());
+        let child0 = child0.trim_matches(|c: char| !c.is_ascii_alphanumeric());
+        let child1 = child1.trim_matches(|c: char| !c.is_ascii_alphanumeric());
 
-            let node = add(&mut map, node);
-            let child0 = add(&mut map, child0);
-            let child1 = add(&mut map, child1);
+        let node = add_(&mut graph, &mut map, node);
+        let child0 = add_(&mut graph, &mut map, child0);
+        let child1 = add_(&mut graph, &mut map, child1);
 
-            (node, (child0, child1))
-        })
-        .collect::<Vec<(u32, (u32, u32))>>();
-    graph.sort_by_key(|(i, _)| *i);
+        graph[node as usize] = (child0, child1);
+    }
 
     let mut part1 = 0;
-    let mut current = *map.get_by_left("AAA").unwrap();
+    let end = *map.get("ZZZ").unwrap();
+    let mut current = *map.get("AAA").unwrap();
     for char in sequence.chars().cycle() {
-        if let Some(&"ZZZ") = map.get_by_right(&current) {
+        if current == end {
             break;
         }
 
-        let (child0, child1) = graph[current as usize].1;
+        let (child0, child1) = graph[current as usize];
         if char == 'L' {
             current = child0;
         } else {
@@ -51,6 +54,12 @@ pub fn solve(input: &str) -> Solution {
     }
 
     let mut part2 = 1;
+    let ends = map
+        .iter()
+        .filter(|(str, _)| &str[2..] == "Z")
+        .map(|(_, i)| *i)
+        .collect::<Vec<_>>();
+
     for mut current in map
         .iter()
         .filter(|(str, _)| &str[2..] == "A")
@@ -58,11 +67,11 @@ pub fn solve(input: &str) -> Solution {
     {
         let mut steps = 0;
         for char in sequence.chars().cycle() {
-            if let Some("Z") = map.get_by_right(&current).map(|str| &str[2..]) {
+            if ends.contains(&current) {
                 break;
             }
 
-            let (child0, child1) = graph[current as usize].1;
+            let (child0, child1) = graph[current as usize];
             if char == 'L' {
                 current = child0;
             } else {

@@ -10,29 +10,41 @@ pub fn solve(input: &str) -> Solution {
             .trim()
             .split_ascii_whitespace()
             .map(|str| str.parse::<u64>().unwrap())
+            .rev()
             .collect::<Vec<_>>();
 
-        let mut stack = vec![(numbers[0], 1)];
+        let mut stack = vec![(result, 0)];
         while let Some((current, idx)) = stack.pop() {
-            if idx != numbers.len() {
-                stack.push((current + numbers[idx], idx + 1));
-                stack.push((current * numbers[idx], idx + 1));
-            } else if current == result {
+            if idx < numbers.len() - 1 {
+                if current % numbers[idx] == 0 {
+                    stack.push((current / numbers[idx], idx + 1));
+                }
+                if current > numbers[idx] {
+                    stack.push((current - numbers[idx], idx + 1))
+                }
+            } else if current == numbers[idx] {
                 part1 += result;
                 break;
             }
         }
 
-        let mut stack = vec![(numbers[0], 1)];
+        let mut stack = vec![(result, 0)];
         while let Some((current, idx)) = stack.pop() {
-            if idx != numbers.len() {
-                stack.push((current + numbers[idx], idx + 1));
-                stack.push((current * numbers[idx], idx + 1));
-                stack.push((
-                    current * 10u64.pow(numbers[idx].ilog10() + 1) + numbers[idx],
-                    idx + 1,
-                ));
-            } else if current == result {
+            if idx < numbers.len() - 1 {
+                if current % numbers[idx] == 0 {
+                    stack.push((current / numbers[idx], idx + 1));
+                }
+                if current > numbers[idx] {
+                    stack.push((current - numbers[idx], idx + 1))
+                }
+
+                if let Some(new_goal) = current.checked_sub(numbers[idx]) {
+                    let tens = 10u64.pow(numbers[idx].ilog10() + 1);
+                    if new_goal % tens == 0 {
+                        stack.push((new_goal / tens, idx + 1));
+                    }
+                }
+            } else if current == numbers[idx] {
                 part2 += result;
                 break;
             }

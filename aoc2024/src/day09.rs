@@ -4,6 +4,7 @@ pub fn solve(input: &str) -> Solution {
     let mut files = 0;
     let mut file = true;
     let mut blocks = Vec::new();
+    let mut free_list = Vec::new();
     let mut intervals = Vec::new();
     for c in input.chars() {
         let count = c.to_digit(10).unwrap();
@@ -13,6 +14,7 @@ pub fn solve(input: &str) -> Solution {
             files += 1;
             block
         } else {
+            free_list.push(intervals.len());
             intervals.push((None, count));
             None
         };
@@ -53,16 +55,26 @@ pub fn solve(input: &str) -> Solution {
     while j != 0 {
         let (id, count) = intervals[j];
         if let Some(id) = id {
-            for i in 0..j {
-                let (test_id, test_count) = intervals[i];
-                if test_id.is_some() || test_count < count {
+            for i in 0..free_list.len() {
+                let block_idx = free_list[i];
+                if block_idx > j {
+                    break;
+                }
+
+                let (_, test_count) = intervals[block_idx];
+                if test_count < count {
                     continue;
                 }
 
                 intervals[j] = (None, count);
-                intervals[i] = (Some(id), count);
+                intervals[block_idx] = (Some(id), count);
                 if test_count - count > 0 {
-                    intervals.insert(i + 1, (None, test_count - count));
+                    intervals.insert(block_idx + 1, (None, test_count - count));
+                    for item in free_list.iter_mut().skip(i) {
+                        *item += 1;
+                    }
+                } else {
+                    free_list.remove(i);
                 }
 
                 break;

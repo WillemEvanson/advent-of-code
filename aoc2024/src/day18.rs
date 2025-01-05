@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use util::grid::Grid;
+use util::union_find::UnionFind;
 use util::Solution;
 
 pub fn solve(input: &str) -> Solution {
@@ -71,58 +72,95 @@ pub fn solve(input: &str) -> Solution {
     }
     let part1 = steps;
 
-    let mut part2 = String::new();
-    'steps: for &(byte_x, byte_y) in bytes.iter().skip(1024) {
-        grid.set(byte_x, byte_y, true);
+    for &(x, y) in bytes.iter().skip(1024) {
+        grid.set(x, y, true);
+    }
 
-        let mut visited = HashSet::new();
-        let mut next = Vec::new();
-        let mut current = vec![(start_x, start_y)];
-        while !current.is_empty() {
-            while let Some((x, y)) = current.pop() {
-                if x == end_x && y == end_y {
-                    continue 'steps;
-                }
+    let start_idx = grid.get_index_unchecked(start_x, start_y) as u32;
+    let end_idx = grid.get_index_unchecked(end_x, end_y) as u32;
+    let mut unionfind = UnionFind::new(grid.width() * grid.height());
+    for y in 0..grid.height() {
+        for x in 0..grid.width() {
+            if let Some(true) = grid.get_at(x, y) {
+                continue;
+            }
+            let element_idx = grid.get_index(x, y).unwrap() as u32;
 
-                if visited.contains(&(x, y)) {
-                    continue;
-                }
-                visited.insert((x, y));
-
-                if let Some((new_x, new_y)) = grid
-                    .get_offset(x, y, -1, 0)
-                    .filter(|&(new_x, new_y)| grid.get_at(new_x, new_y).copied() == Some(false))
-                {
-                    next.push((new_x, new_y));
-                }
-
-                if let Some((new_x, new_y)) = grid
-                    .get_offset(x, y, 1, 0)
-                    .filter(|&(new_x, new_y)| grid.get_at(new_x, new_y).copied() == Some(false))
-                {
-                    next.push((new_x, new_y));
-                }
-
-                if let Some((new_x, new_y)) = grid
-                    .get_offset(x, y, 0, -1)
-                    .filter(|&(new_x, new_y)| grid.get_at(new_x, new_y).copied() == Some(false))
-                {
-                    next.push((new_x, new_y));
-                }
-
-                if let Some((new_x, new_y)) = grid
-                    .get_offset(x, y, 0, 1)
-                    .filter(|&(new_x, new_y)| grid.get_at(new_x, new_y).copied() == Some(false))
-                {
-                    next.push((new_x, new_y));
-                }
+            if let Some((new_x, new_y)) = grid
+                .get_offset(x, y, -1, 0)
+                .filter(|&(new_x, new_y)| grid.get_at(new_x, new_y).copied() == Some(false))
+            {
+                let other_idx = grid.get_index(new_x, new_y).unwrap() as u32;
+                unionfind.merge(element_idx, other_idx);
             }
 
-            std::mem::swap(&mut current, &mut next);
+            if let Some((new_x, new_y)) = grid
+                .get_offset(x, y, 1, 0)
+                .filter(|&(new_x, new_y)| grid.get_at(new_x, new_y).copied() == Some(false))
+            {
+                let other_idx = grid.get_index(new_x, new_y).unwrap() as u32;
+                unionfind.merge(element_idx, other_idx);
+            }
+
+            if let Some((new_x, new_y)) = grid
+                .get_offset(x, y, 0, -1)
+                .filter(|&(new_x, new_y)| grid.get_at(new_x, new_y).copied() == Some(false))
+            {
+                let other_idx = grid.get_index(new_x, new_y).unwrap() as u32;
+                unionfind.merge(element_idx, other_idx);
+            }
+
+            if let Some((new_x, new_y)) = grid
+                .get_offset(x, y, 0, 1)
+                .filter(|&(new_x, new_y)| grid.get_at(new_x, new_y).copied() == Some(false))
+            {
+                let other_idx = grid.get_index(new_x, new_y).unwrap() as u32;
+                unionfind.merge(element_idx, other_idx);
+            }
+        }
+    }
+
+    let mut part2 = String::new();
+    for &(x, y) in bytes.iter().skip(1024).rev() {
+        let element_idx = grid.get_index(x, y).unwrap() as u32;
+        grid.set(x, y, false);
+
+        if let Some((new_x, new_y)) = grid
+            .get_offset(x, y, -1, 0)
+            .filter(|&(new_x, new_y)| grid.get_at(new_x, new_y).copied() == Some(false))
+        {
+            let other_idx = grid.get_index(new_x, new_y).unwrap() as u32;
+            unionfind.merge(element_idx, other_idx);
         }
 
-        part2 = format!("{byte_x},{byte_y}");
-        break;
+        if let Some((new_x, new_y)) = grid
+            .get_offset(x, y, 1, 0)
+            .filter(|&(new_x, new_y)| grid.get_at(new_x, new_y).copied() == Some(false))
+        {
+            let other_idx = grid.get_index(new_x, new_y).unwrap() as u32;
+            unionfind.merge(element_idx, other_idx);
+        }
+
+        if let Some((new_x, new_y)) = grid
+            .get_offset(x, y, 0, -1)
+            .filter(|&(new_x, new_y)| grid.get_at(new_x, new_y).copied() == Some(false))
+        {
+            let other_idx = grid.get_index(new_x, new_y).unwrap() as u32;
+            unionfind.merge(element_idx, other_idx);
+        }
+
+        if let Some((new_x, new_y)) = grid
+            .get_offset(x, y, 0, 1)
+            .filter(|&(new_x, new_y)| grid.get_at(new_x, new_y).copied() == Some(false))
+        {
+            let other_idx = grid.get_index(new_x, new_y).unwrap() as u32;
+            unionfind.merge(element_idx, other_idx);
+        }
+
+        if unionfind.find(start_idx) == unionfind.find(end_idx) {
+            part2 = format!("{x},{y}");
+            break;
+        }
     }
 
     Solution::from((part1, part2))

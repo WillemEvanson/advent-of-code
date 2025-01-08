@@ -1,4 +1,5 @@
-use std::collections::{HashMap, HashSet};
+use std::cmp::Reverse;
+use std::collections::BinaryHeap;
 
 use util::direction::Direction;
 use util::grid::Grid;
@@ -34,118 +35,102 @@ pub fn solve(input: &str) -> Solution {
         }
     }
 
-    let mut part1 = u64::MAX;
-    let mut visited = HashMap::new();
-    let mut stack = vec![(start_x, start_y, Direction::Right, 0)];
-    while let Some((x, y, direction, cost)) = stack.pop() {
-        if cost >= part1 {
-            continue;
-        }
+    let start_direction = Direction::Right;
+    let mut distances = vec![u64::MAX; 4 * (grid.width() * grid.height()) as usize];
+    distances[4 * grid.get_index_unchecked(start_x, start_y) + start_direction as usize] = 0;
 
+    let mut part1 = u64::MAX;
+    let mut queue = BinaryHeap::new();
+    queue.push((Reverse(0), start_x, start_y, start_direction));
+    while let Some((Reverse(cost), x, y, direction)) = queue.pop() {
         if x == end_x && y == end_y {
             part1 = cost;
-            continue;
+        } else if part1 != u64::MAX {
+            break;
         }
 
-        if let Some(&old_cost) = visited.get(&(x, y, direction)) {
-            if old_cost <= cost {
-                continue;
-            }
-        }
-        visited.insert((x, y, direction), cost);
-
+        let new_cost = cost + 1000;
         let new_direction = direction.left();
-        let (offset_x, offset_y) = new_direction.offset();
-        if let Some((new_x, new_y)) = grid
-            .get_offset(x, y, offset_x, offset_y)
-            .filter(|&(new_x, new_y)| grid.get_at(new_x, new_y).copied() == Some(false))
-        {
-            stack.push((new_x, new_y, new_direction, cost + 1001));
+        let distance_idx = 4 * grid.get_index_unchecked(x, y) + new_direction as usize;
+        if distances[distance_idx] > new_cost {
+            queue.push((Reverse(new_cost), x, y, new_direction));
+            distances[distance_idx] = new_cost;
         }
 
+        let new_cost = cost + 1000;
         let new_direction = direction.right();
-        let (offset_x, offset_y) = new_direction.offset();
-        if let Some((new_x, new_y)) = grid
-            .get_offset(x, y, offset_x, offset_y)
-            .filter(|&(new_x, new_y)| grid.get_at(new_x, new_y).copied() == Some(false))
-        {
-            stack.push((new_x, new_y, new_direction, cost + 1001));
+        let distance_idx = 4 * grid.get_index_unchecked(x, y) + new_direction as usize;
+        if distances[distance_idx] > new_cost {
+            queue.push((Reverse(new_cost), x, y, new_direction));
+            distances[distance_idx] = new_cost;
         }
 
+        let new_cost = cost + 1;
         let (offset_x, offset_y) = direction.offset();
         if let Some((new_x, new_y)) = grid
             .get_offset(x, y, offset_x, offset_y)
             .filter(|&(new_x, new_y)| grid.get_at(new_x, new_y).copied() == Some(false))
         {
-            stack.push((new_x, new_y, direction, cost + 1));
-        }
-    }
-
-    let mut best_paths = Vec::new();
-    let mut visited = HashMap::new();
-    let mut stack = vec![(
-        start_x,
-        start_y,
-        Direction::Right,
-        0,
-        vec![(start_x, start_y)],
-    )];
-    while let Some((x, y, direction, cost, path)) = stack.pop() {
-        if cost > part1 {
-            continue;
-        }
-
-        if x == end_x && y == end_y {
-            best_paths.push(path);
-            continue;
-        }
-
-        if let Some(&old_cost) = visited.get(&(x, y, direction)) {
-            if old_cost < cost {
-                continue;
+            let distance_idx = 4 * grid.get_index_unchecked(new_x, new_y) + direction as usize;
+            if distances[distance_idx] > new_cost {
+                queue.push((Reverse(new_cost), new_x, new_y, direction));
+                distances[distance_idx] = new_cost;
             }
         }
-        visited.insert((x, y, direction), cost);
+    }
 
+    let mut todo = Vec::new();
+    for direction in [
+        Direction::Left,
+        Direction::Right,
+        Direction::Up,
+        Direction::Down,
+    ] {
+        let end_idx = 4 * grid.get_index_unchecked(end_x, end_y) + direction as usize;
+        if distances[end_idx] == part1 {
+            todo.push((part1, end_x, end_y, direction));
+        }
+    }
+
+    let mut paths = Vec::new();
+    while let Some((cost, x, y, direction)) = todo.pop() {
+        paths.push((x, y));
+        if x == start_x && y == start_y {
+            continue;
+        }
+
+        let new_cost = cost.wrapping_sub(1000);
         let new_direction = direction.left();
-        let (offset_x, offset_y) = new_direction.offset();
-        if let Some((new_x, new_y)) = grid
-            .get_offset(x, y, offset_x, offset_y)
-            .filter(|&(new_x, new_y)| grid.get_at(new_x, new_y).copied() == Some(false))
-        {
-            let mut new_path = path.clone();
-            new_path.push((new_x, new_y));
-            stack.push((new_x, new_y, new_direction, cost + 1001, new_path));
+        let distance_idx = 4 * grid.get_index_unchecked(x, y) + new_direction as usize;
+        if distances[distance_idx] == new_cost {
+            todo.push((new_cost, x, y, new_direction));
+            distances[distance_idx] = u64::MAX;
         }
 
+        let new_cost = cost.wrapping_sub(1000);
         let new_direction = direction.right();
-        let (offset_x, offset_y) = new_direction.offset();
+        let distance_idx = 4 * grid.get_index_unchecked(x, y) + new_direction as usize;
+        if distances[distance_idx] == new_cost {
+            todo.push((new_cost, x, y, new_direction));
+            distances[distance_idx] = u64::MAX;
+        }
+
+        let new_cost = cost.wrapping_sub(1);
+        let (offset_x, offset_y) = direction.back().offset();
         if let Some((new_x, new_y)) = grid
             .get_offset(x, y, offset_x, offset_y)
             .filter(|&(new_x, new_y)| grid.get_at(new_x, new_y).copied() == Some(false))
         {
-            let mut new_path = path.clone();
-            new_path.push((new_x, new_y));
-            stack.push((new_x, new_y, new_direction, cost + 1001, new_path));
-        }
-
-        let new_direction = direction;
-        let (offset_x, offset_y) = new_direction.offset();
-        if let Some((new_x, new_y)) = grid
-            .get_offset(x, y, offset_x, offset_y)
-            .filter(|&(new_x, new_y)| grid.get_at(new_x, new_y).copied() == Some(false))
-        {
-            let mut new_path = path.clone();
-            new_path.push((new_x, new_y));
-            stack.push((new_x, new_y, new_direction, cost + 1, new_path));
+            let distance_idx = 4 * grid.get_index_unchecked(new_x, new_y) + direction as usize;
+            if distances[distance_idx] == new_cost {
+                todo.push((new_cost, new_x, new_y, direction));
+                distances[distance_idx] = u64::MAX;
+            }
         }
     }
-
-    let mut visited = HashSet::new();
-    for &(x, y) in best_paths.iter().flatten() {
-        visited.insert((x, y));
-    }
-    let part2 = visited.len() as u64;
+    paths.sort_unstable();
+    paths.dedup();
+    let part2 = paths.len() as u64;
 
     Solution::from((part1, part2))
 }

@@ -3,6 +3,7 @@ use aoc2025::*;
 #[rustfmt::skip]
 const FUNCTIONS: &[fn(&str) -> util::Solution] = &[
     day01::solve,
+    day02::solve,
 ];
 
 fn main() {

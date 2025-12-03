@@ -4,6 +4,7 @@ use aoc2025::*;
 const FUNCTIONS: &[fn(&str) -> util::Solution] = &[
     day01::solve,
     day02::solve,
+    day03::solve,
 ];
 
 fn main() {
